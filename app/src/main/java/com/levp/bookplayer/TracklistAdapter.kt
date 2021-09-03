@@ -25,13 +25,13 @@ class TracklistAdapter(private val trackList: ArrayList<TrackSupport.Track>) : R
         holder.trackName.text =  trackList[position].name
         holder.trackArtist.text =  trackList[position].artist
         //holder.trackCover.clipToOutline = true
-        if(trackList[position].imageUri!=null)
-        {
-            Glide.with(holder.trackCover)
-                .asBitmap()
-                .load(trackList[position].imageUri)
-                .into(holder.trackCover)
-        }
+//        if(trackList[position].imageUri!=null)
+//        {
+//            Glide.with(holder.trackCover)
+//                .asBitmap()
+//                .load(trackList[position].imageUri)
+//                .into(holder.trackCover)
+//        }
 
     }
 

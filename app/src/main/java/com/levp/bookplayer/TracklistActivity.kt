@@ -7,15 +7,13 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.database.Cursor
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.provider.BaseColumns
 import android.provider.MediaStore
 import android.provider.MediaStore.Audio.*
-import android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -26,14 +24,16 @@ import java.io.File
 
 
 class TracklistActivity : AppCompatActivity() {
-    lateinit var trackList : ArrayList<TrackSupport.Track>
-    lateinit var audioList : ArrayList<Audio>
+
+    lateinit var trackList: ArrayList<TrackSupport.Track>
+
+    //lateinit var trackList: ArrayList<Audio>
     private val MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 9834
 
     private var player: MediaPlayerService? = null
     var serviceBound = false
 
-    lateinit var adapter:TracklistAdapter
+    lateinit var adapter: TracklistAdapter
 
     private val allShownAudioPath: ArrayList<File> = ArrayList()
 
@@ -43,7 +43,7 @@ class TracklistActivity : AppCompatActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkSelfPermission(READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+                    != PackageManager.PERMISSION_GRANTED) {
 
                 // Should we show an explanation?
                 if (shouldShowRequestPermissionRationale(READ_EXTERNAL_STORAGE)
@@ -77,8 +77,11 @@ class TracklistActivity : AppCompatActivity() {
                     tracklist_holder,
                     object : RecyclerTouchListener.ClickListener {
                         override fun onClick(view: View?, position: Int) {
-                            val path = trackList.get(position).dataUri.toString()
-                            playAudio(path)
+                            val path = trackList.get(position).dataUri
+                            //Log.e("picked index : ", position.toString())
+
+                            playAudio(position)
+
 
                         }
 
@@ -94,7 +97,6 @@ class TracklistActivity : AppCompatActivity() {
             ))
 
         }
-
 
 
     }
@@ -114,7 +116,8 @@ class TracklistActivity : AppCompatActivity() {
         ).show()
         if (cursor != null && cursor.count > 0) {
 
-            audioList = ArrayList()
+            trackList = ArrayList(0)
+
             while (cursor.moveToNext()) {
                 val _id = cursor.getLong(cursor.getColumnIndexOrThrow(Media._ID))
                 //val volumeName = cursor.getString(cursor.getColumnIndex(Media.VOLUME_NAME))
@@ -134,24 +137,24 @@ class TracklistActivity : AppCompatActivity() {
                     val data = cursor.getString(cursor.getColumnIndex(Media.DATA))
                     //val albumArt: String = cursor.getString(cursor.getColumnIndex(Albums.ALBUM_ART))
                     track = TrackSupport.Track(data, title, album, artist)
-                    track.imageUri = ImageUrl
-                }
-                else
-                {
+                    //track.imageUri = ImageUrl
+                } else {
 
                 }
-                // Save to audioList
-                //audioList.add(Audio(data, title, album, artist))
+                // Save to trackList
+                //trackList.add(Audio(data, title, album, artist))
 
 
-                track.duration = duration
-                track.context = applicationContext
+                //track.duration = duration
+
                 trackList.add(track)
 
             }
         }
+        //Log.e("loaded _list : ",trackList.size.toString())
         cursor?.close()
     }
+
     override fun onSaveInstanceState(savedInstanceState: Bundle) {
         savedInstanceState.putBoolean("ServiceState", serviceBound)
         super.onSaveInstanceState(savedInstanceState)
@@ -170,14 +173,14 @@ class TracklistActivity : AppCompatActivity() {
             player!!.stopSelf()
         }
     }
-    private fun gotoPlayer(switch: Boolean)
-    {
+
+    private fun gotoPlayer(switch: Boolean) {
         intent = Intent(this, PlayerActivity::class.java)
         intent.putExtra("switch", switch)
         startActivity(intent)
     }
-    private fun gotoTracklist()
-    {
+
+    private fun gotoTracklist() {
         intent = Intent(this, TracklistActivity::class.java)
         startActivity(intent)
     }
@@ -195,21 +198,32 @@ class TracklistActivity : AppCompatActivity() {
             serviceBound = false
         }
     }
-    private fun playAudio(media: String) {
+
+    private fun playAudio(audioIndex: Int) {
+        //Check is service is active
         //Check is service is active
         if (!serviceBound) {
+            //Store Serializable trackList to SharedPreferences
+            val storage = StorageUtil(applicationContext)
+            //Log.e("_list storing : ", trackList.size.toString())
+            storage.storeAudio(trackList)
+            storage.storeAudioIndex(audioIndex)
             val playerIntent = Intent(this, MediaPlayerService::class.java)
-            playerIntent.putExtra("media", media)
             startService(playerIntent)
-            bindService(playerIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+            bindService(playerIntent, serviceConnection, BIND_AUTO_CREATE)
         } else {
-            //TODO ы
+            //Store the new audioIndex to SharedPreferences
+            val storage = StorageUtil(applicationContext)
+            storage.storeAudioIndex(audioIndex)
+
             //Service is active
-            //Send media with BroadcastReceiver
+            //Send a broadcast to the service -> PLAY_NEW_AUDIO
+            val broadcastIntent = Intent(Broadcast_PLAY_NEW_AUDIO)
+            sendBroadcast(broadcastIntent)
         }
     }
-    fun getAlbumUri(mContext: Context, album_id: String) : Uri?
-    {
+
+    fun getAlbumUri(mContext: Context, album_id: String): Uri? {
         if (mContext != null) {
             val sArtworkUri = Uri.parse("content://media/external/audio/albumart")
             return Uri.withAppendedPath(sArtworkUri, java.lang.String.valueOf(album_id))
@@ -217,4 +231,7 @@ class TracklistActivity : AppCompatActivity() {
         return null
     }
 
+    companion object {
+        const val Broadcast_PLAY_NEW_AUDIO = "com.levp.bookplayer.audioplayer.PlayNewAudio"
+    }
 }

@@ -16,7 +16,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BookPlayer">
-        <activity android:name=".TracklistActivity"></activity>
+        <activity android:name=".TracklistActivity" />
         <activity
             android:name=".PlayerActivity"
             android:parentActivityName=".MainActivity" />
